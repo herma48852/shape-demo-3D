@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Native C++ Validation & Stubs Plan</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #060913;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        pre {
+            background-color: #0b0f19;
+            border: 1px solid #1e293b;
+        }
+        code:not(pre code) {
+            font-family: 'Fira Code', monospace;
+            background-color: #1e293b;
+            color: #93c5fd;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.85em;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="text-gray-300 min-h-screen py-10 px-4 sm:px-6 lg:px-12 flex justify-center">
+
+    <main class="w-full max-w-5xl space-y-10">
+
+        <!-- Header -->
+        <header class="border-b border-gray-800 pb-8 flex items-start gap-4">
+            <span class="p-3 mt-1 bg-emerald-600/10 text-emerald-400 rounded-xl border border-emerald-500/20 shadow-lg">
+                <i class="fa-solid fa-vial-circle-check text-2xl"></i>
+            </span>
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">Validation & Testing Infrastructure</h1>
+                <p class="text-sm text-gray-400 leading-relaxed max-w-3xl">
+                    This document defines the isolated stubs, visual checks, and mock infrastructures required to validate each phase of the Interactive Controls implementation before moving to the next.
+                </p>
+            </div>
+        </header>
+
+        <!-- Phase 1 Validation -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <i class="fa-solid fa-1 text-emerald-500"></i>
+                Phase 1: ImGui Compilation & OpenGL Hook Validation
+            </h2>
+            <p class="text-sm text-gray-400">
+                <strong>Goal:</strong> Ensure CMake successfully compiled ImGui via <code>FetchContent</code> and that the GLFW/OpenGL backends can render over your 3D viewport without capturing mouse events meant for the camera.
+            </p>
+            <div class="space-y-4 text-sm text-gray-300">
+                <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                    <strong class="text-emerald-400 block mb-2"><i class="fa-solid fa-code"></i> Test Stub (Inject into <code>src/main.cpp</code> loop):</strong>
+                    <p class="text-xs text-gray-400 mb-2">Do not build your custom UI yet. Use the built-in ImGui Demo Window to verify font rendering, interaction, and context setup.</p>
+                    <pre class="p-4 rounded-lg overflow-x-auto text-[13px] code-font text-sky-300">ImGui_ImplOpenGL3_NewFrame();
+ImGui_ImplGlfw_NewFrame();
+ImGui::NewFrame();
+
+// STUB: Render standard ImGui diagnostic window
+bool show_demo = true;
+ImGui::ShowDemoWindow(&show_demo);
+
+ImGui::Render();
+ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());</pre>
+                </div>
+                <div class="bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/20">
+                    <strong class="text-emerald-400">Acceptance Criteria:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>The complex ImGui Demo window appears rendered cleanly over the dark blue background.</li>
+                        <li>Clicking and dragging the window works smoothly (verifies GLFW input capture).</li>
+                        <li>Clicking the 3D space <em>behind</em> the window still rotates the camera (verifies input fallthrough).</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Phase 2 Validation -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <i class="fa-solid fa-2 text-emerald-500"></i>
+                Phase 2: UI State & Data Binding Mock
+            </h2>
+            <p class="text-sm text-gray-400">
+                <strong>Goal:</strong> Validate that the UI buttons correctly mutate your local C++ <code>std::vector</code> state without requiring the RTI DDS middleware to be running or functioning correctly.
+            </p>
+            <div class="space-y-4 text-sm text-gray-300">
+                <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                    <strong class="text-emerald-400 block mb-2"><i class="fa-solid fa-code"></i> Mock Infrastructure:</strong>
+                    <p class="text-xs text-gray-400 mb-2">Temporarily comment out <code>dds_manager.create_writer()</code>. Instead, output to stdout and visually verify the vector size.</p>
+                    <pre class="p-4 rounded-lg overflow-x-auto text-[13px] code-font text-yellow-300">if (ImGui::Button("Initialize DataWriter Instance")) {
+    LocalPublisher pub;
+    pub.id = "mock_" + std::to_string(std::time(nullptr));
+    pub.shape = selected_shape_str;
+    pub.color = selected_color_str;
+    
+    // STUB: Bypass DDS
+    // dds_manager.create_writer(pub.shape, pub.color); 
+    
+    std::cout << "[STUB] Created UI Publisher: " << pub.shape << " | " << pub.color << std::endl;
+    active_publishers.push_back(pub);
+}
+
+// STUB: Verify UI Table Rendering
+ImGui::Text("Active Local Publishers: %zu", active_publishers.size());</pre>
+                </div>
+                <div class="bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/20">
+                    <strong class="text-emerald-400">Acceptance Criteria:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Clicking "Initialize DataWriter" increments the UI text counter immediately.</li>
+                        <li>The terminal outputs the exact shape and color selected in the ImGui combo boxes.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Phase 3 Validation -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <i class="fa-solid fa-3 text-emerald-500"></i>
+                Phase 3: Kinematics & Physics Isolation Test
+            </h2>
+            <p class="text-sm text-gray-400">
+                <strong>Goal:</strong> Ensure the math for linear bouncing and trigonometric orbits works correctly before piping those rapidly changing coordinates into the DDS network.
+            </p>
+            <div class="space-y-4 text-sm text-gray-300">
+                <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                    <strong class="text-emerald-400 block mb-2"><i class="fa-solid fa-code"></i> Rendering Stub:</strong>
+                    <p class="text-xs text-gray-400 mb-2">Pipe the <code>active_publishers</code> kinematics loop directly to the OpenGL <code>graphics.draw_cube()</code> method, completely ignoring the DDS Reader queue.</p>
+                    <pre class="p-4 rounded-lg overflow-x-auto text-[13px] code-font text-orange-300">// INSIDE KINEMATICS LOOP
+for (auto& pub : active_publishers) {
+    // ... apply physics math to pub.x, pub.y, pub.z ...
+    
+    // STUB: Render directly to screen based on local physics state (Bypass DDS)
+    graphics.draw_cube(pub.x, pub.y, pub.z, pub.size, 1.0f, 1.0f, 1.0f, false);
+    
+    // dds_manager.write_shape_sample(...); // KEEP COMMENTED OUT
+}</pre>
+                </div>
+                <div class="bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/20">
+                    <strong class="text-emerald-400">Acceptance Criteria:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Creating a publisher in the UI immediately spawns a white cube in the 3D viewport.</li>
+                        <li>The cube bounces predictably between the 0 and 250 coordinate bounds without flying off-screen.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Phase 4 Validation -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <i class="fa-solid fa-4 text-emerald-500"></i>
+                Phase 4: Full Stack Loopback Integration
+            </h2>
+            <p class="text-sm text-gray-400">
+                <strong>Goal:</strong> Remove the stubs and validate that the data correctly traverses down into the C++ DDS Publisher, crosses the UDP loopback interface, is caught by the DDS Subscriber, passed to the lock-free queue, and finally rendered as a wireframe.
+            </p>
+            <div class="space-y-4 text-sm text-gray-300">
+                <div class="bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/20">
+                    <strong class="text-emerald-400 block mb-2"><i class="fa-solid fa-clipboard-check"></i> Final Execution Test:</strong>
+                    <ul class="list-decimal list-outside ml-5 space-y-2 text-gray-400">
+                        <li>Uncomment <code>dds_manager.create_writer</code> and <code>dds_manager.write_shape_sample</code>.</li>
+                        <li>Run the application. The 3D viewport should be <strong>empty</strong> (local publishers render as data, not direct pixels).</li>
+                        <li>Use the ImGui UI to create a BLUE Cube Publisher. (Viewport should still be empty).</li>
+                        <li>Use the ImGui UI to create a Subscriber filtering for "BLUE".</li>
+                        <li><strong>SUCCESS:</strong> A blue wireframe cube should immediately appear in the viewport, following the kinematics trajectory, proving the entire C++ DDS pipeline is healthy.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>

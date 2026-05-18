@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTI Connext 7.7 - Native C++ Porting Guide</title>
+    <!-- Tailwind CSS for modern documentation layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fira Code & Inter Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #060913;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        pre {
+            background-color: #0b0f19;
+            border: 1px solid #1e293b;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="text-gray-300 min-h-screen flex flex-col lg:flex-row">
+
+    <!-- Global Clipboard Notification Toast -->
+    <div id="toast-notification" class="fixed top-4 right-4 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 bg-emerald-600 text-white px-4 py-2.5 rounded-lg shadow-2xl flex items-center gap-2 pointer-events-none text-xs font-semibold">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toast-text">Code snippet copied!</span>
+    </div>
+
+    <!-- Navigation Drawer Sidebar -->
+    <aside class="w-full lg:w-80 bg-gray-950 border-b lg:border-b-0 lg:border-r border-gray-850 flex flex-col shrink-0 font-medium">
+        <div class="p-6 border-b border-gray-850">
+            <div class="flex items-center gap-3">
+                <span class="p-2.5 bg-indigo-600/10 text-indigo-400 rounded-lg border border-indigo-500/20">
+                    <i class="fa-solid fa-microchip text-xl"></i>
+                </span>
+                <div>
+                    <h2 class="font-bold text-sm tracking-wide text-white leading-none">Connext 7.7 C++</h2>
+                    <p class="text-[10px] text-gray-400 mt-1">Native Porting Blueprint</p>
+                </div>
+            </div>
+            <div class="mt-4 px-2.5 py-1 bg-indigo-950/40 text-indigo-400 border border-indigo-500/15 rounded text-[9px] font-mono font-bold uppercase tracking-wider inline-block">
+                Option 2: Pure C++ & OpenGL
+            </div>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1.5 text-xs">
+            <a href="#arch-overview" class="flex items-center gap-2.5 px-3 py-2 text-indigo-400 hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-compass-drafting w-4 text-center"></i> Architectural Overview
+            </a>
+            <a href="#dir-structure" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-folder-tree w-4 text-center"></i> Directory Structure
+            </a>
+            <a href="#build-system" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-screwdriver-wrench w-4 text-center"></i> Step 1: CMake Config
+            </a>
+            <a href="#idl-definition" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-file-signature w-4 text-center"></i> Step 2: Extended IDL
+            </a>
+            <a href="#thread-model" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-arrows-spin w-4 text-center"></i> Step 3: Thread Decoupler
+            </a>
+            <a href="#dds-subsystem" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-network-wired w-4 text-center"></i> Step 4: DDS Manager
+            </a>
+            <a href="#render-engine" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-cube w-4 text-center"></i> Step 5: OpenGL Engine
+            </a>
+            <a href="#orchestration" class="flex items-center gap-2.5 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition">
+                <i class="fa-solid fa-circle-nodes w-4 text-center"></i> Step 6: Main Entry
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Blueprint Documentation Container -->
+    <main class="flex-1 overflow-y-auto px-6 py-10 lg:px-12 space-y-12 max-w-5xl">
+
+        <!-- Title Header -->
+        <header class="border-b border-gray-800 pb-6">
+            <h1 class="text-3xl font-extrabold tracking-tight text-white">RTI Connext DDS 7.7 Native Blueprint</h1>
+            <p class="text-sm text-gray-400 mt-2 leading-relaxed">
+                Step-by-step engineering plan, directory layouts, and production code bases for building a decoupled, hardware-accelerated shapes telemetry visualizer in compiled modern C++ matching Connext 7.7 specifications.
+            </p>
+        </header>
+
+        <!-- Section: Architectural Overview -->
+        <section id="arch-overview" class="space-y-4">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2.5">
+                <i class="fa-solid fa-compass-drafting text-indigo-400"></i> Architectural Overview
+            </h2>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                To move out of the browser sandbox and link straight against the native <strong>RTI Connext DDS 7.7 libraries</strong>, we implement a decoupled 
+                multithreaded pattern. In standard DDS systems, receiving messages occurs on thread context pools owned exclusively by the middleware. If 
+                those threads attempt to issue direct drawing calls to the window graphics context, the application context crashes.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                <div class="bg-gray-900/40 border border-gray-850 p-4 rounded-xl space-y-2">
+                    <span class="font-bold text-blue-400 block uppercase tracking-wide">DDS Thread Context (Input)</span>
+                    <p class="text-gray-400 leading-relaxed">
+                        Runs standard asynchronous UDP multicast discovery and network packet listener loops. Receives raw binary frames from the wire, deserializes them into type-safe IDL shapes, and enqueues them onto a thread-safe lock-free buffer.
+                    </p>
+                </div>
+                <div class="bg-gray-900/40 border border-gray-850 p-4 rounded-xl space-y-2">
+                    <span class="font-bold text-emerald-400 block uppercase tracking-wide">UI Render Thread Context (Main)</span>
+                    <p class="text-gray-400 leading-relaxed">
+                        Monitors keyboard/mouse callback contexts, processes local kinematics, flushes queue frames at screen refresh rates (60+ Hz), and writes flat primitive buffers straight to standard unlit OpenGL pipelines.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Directory Tree Structure -->
+        <section id="dir-structure" class="space-y-4">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2.5">
+                <i class="fa-solid fa-folder-tree text-indigo-400"></i> Target Directory Tree Structure
+            </h2>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                The layout keeps your hand-written source code cleanly isolated from automatic middleware source artifacts generated via <code class="code-font bg-gray-900 px-1.5 py-0.5 rounded text-xs text-indigo-300">rtiddsgen</code>.
+            </p>
+
+            <div class="bg-gray-950 rounded-xl p-5 border border-gray-850 text-xs text-gray-350">
+                <div class="space-y-1.5 leading-none">
+                    <div><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">rti_3d_shapes_workspace/</span></div>
+                    
+                    <!-- Level 1 Elements -->
+                    <div class="pl-5"><i class="fa-solid fa-file-code text-indigo-400 mr-1.5"></i> <span class="text-gray-300">CMakeLists.txt</span> <span class="text-gray-500 italic ml-2">(CREATED - Root build system configuration script)</span></div>
+                    <div class="pl-5"><i class="fa-solid fa-file-lines text-gray-400 mr-1.5"></i> <span class="text-gray-300">README.md</span> <span class="text-gray-500 italic ml-2">(CREATED - Execution instructions and architectural notes)</span></div>
+                    
+                    <!-- Src Root -->
+                    <div class="pl-5"><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">src/</span> <span class="text-gray-500 italic ml-2">(SOURCE ROOT)</span></div>
+                    
+                    <!-- Level 2 Elements (under src) -->
+                    <div class="pl-10"><i class="fa-solid fa-file-code text-emerald-400 mr-1.5"></i> <span class="text-gray-300">main.cpp</span> <span class="text-gray-500 italic ml-2">(CREATED - Entry point: coordinates graphics and DDS threads)</span></div>
+                    <div class="pl-10"><i class="fa-solid fa-file-code text-emerald-400 mr-1.5"></i> <span class="text-gray-300">thread_queue.hpp</span> <span class="text-gray-500 italic ml-2">(CREATED - Lock-free buffer passing data samples between threads)</span></div>
+                    
+                    <!-- Middleware Subsystem (under src) -->
+                    <div class="pl-10"><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">dds/</span> <span class="text-gray-500 italic ml-2">(Middleware Subsystem)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-emerald-400 mr-1.5"></i> <span class="text-gray-300">dds_manager.hpp</span> <span class="text-gray-500 italic ml-2">(CREATED - Declarations for Participants, Topics, and QoS profiles)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-emerald-400 mr-1.5"></i> <span class="text-gray-300">dds_manager.cpp</span> <span class="text-gray-500 italic ml-2">(CREATED - Context implementations for DataWriters/DataReaders)</span></div>
+                    
+                    <!-- Visualizer Subsystem (under src) -->
+                    <div class="pl-10"><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">graphics/</span> <span class="text-gray-500 italic ml-2">(Visualizer Subsystem)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-emerald-400 mr-1.5"></i> <span class="text-gray-300">graphics_engine.hpp</span> <span class="text-gray-500 italic ml-2">(CREATED - OpenGL context and unlit geometric primitive models)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-emerald-400 mr-1.5"></i> <span class="text-gray-300">graphics_engine.cpp</span> <span class="text-gray-500 italic ml-2">(CREATED - Dear ImGui panel drawing and main frame loop logic)</span></div>
+                    
+                    <!-- Unified IDL schemas (under src) -->
+                    <div class="pl-10"><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">idl/</span> <span class="text-gray-500 italic ml-2">(Unified Schema Definitions)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-signature text-orange-400 mr-1.5"></i> <span class="text-gray-300">ShapeType.idl</span> <span class="text-gray-500 italic ml-2">(CREATED - Schema defining ShapeType and ShapeTypeExtended topics)</span></div>
+                    
+                    <!-- Automatically Generated Classes (under src) -->
+                    <div class="pl-10"><i class="fa-solid fa-folder text-indigo-500/70 mr-1.5"></i> <span class="font-bold text-gray-400">generated/</span> <span class="text-gray-500 italic ml-2">(GENERATED - Automatic output from rtiddsgen compiler)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeType.hpp</span> <span class="text-gray-500 italic ml-2">(GENERATED - Type-safe structural definitions for C++)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeType.cxx</span> <span class="text-gray-500 italic ml-2">(GENERATED - Implementation methods for data types)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeTypePlugin.hpp</span> <span class="text-gray-500 italic ml-2">(GENERATED - Middleware data plugins for network data marshaling)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeTypePlugin.cxx</span> <span class="text-gray-500 italic ml-2">(GENERATED - Low-level serialization/deserialization code)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeTypeSupport.hpp</span> <span class="text-gray-500 italic ml-2">(GENERATED - DataWriter and DataReader type specialization wrappers)</span></div>
+                    <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeTypeSupport.cxx</span> <span class="text-gray-500 italic ml-2">(GENERATED - TypeSupport registration routines)</span></div>
+                    
+                    <!-- Transient build output (under rti_3d_shapes_workspace) -->
+                    <div class="pl-5"><i class="fa-solid fa-folder text-indigo-500/80 mr-1.5"></i> <span class="font-bold text-white">build/</span> <span class="text-gray-500 italic ml-2">(TRANSIENT - Output repository managed by CMake build loops)</span></div>
+                    <div class="pl-10"><i class="fa-solid fa-file-code text-indigo-400 mr-1.5"></i> <span class="text-gray-300">CMakeCache.txt</span> <span class="text-gray-500 italic ml-2">(GENERATED - Active compiler configuration metadata)</span></div>
+                    <div class="pl-10"><i class="fa-solid fa-file text-emerald-400 mr-1.5"></i> <span class="text-gray-300">rti_3d_shapes</span> <span class="text-gray-500 italic ml-2">(GENERATED - Final, optimized compiled machine executable binary)</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 1: CMake Configuration -->
+        <section id="build-system" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                <h3 class="text-md font-bold text-white flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 bg-indigo-600/10 text-indigo-400 text-xs font-mono rounded">1</span>
+                    Build System Configuration (CMakeLists.txt)
+                </h3>
+                <button onclick="copyCode('cmake-pre')" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copy code
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                The CMake build script links your compiler targets to the standard Connext Modern C++ framework library hooks (`cpp2`) and references native `GLFW3` and `OpenGL` libraries.
+            </p>
+            <pre id="cmake-pre" class="p-4 rounded-xl overflow-x-auto text-[11px] code-font text-sky-400 leading-relaxed">cmake_minimum_required(VERSION 3.20)
+project(Rti3dShapesWorkspace LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 1. Pull native RTI Connext DDS 7.7 target frameworks
+find_package(RTIConnextDDS REQUIRED COMPONENTS cpp2)
+
+# 2. Pull local GLFW and OpenGL graphics dependencies
+find_package(glfw3 REQUIRED)
+find_package(OpenGL REQUIRED)
+
+add_executable(rti_3d_shapes
+    src/main.cpp
+    src/dds/dds_manager.cpp
+    src/graphics/graphics_engine.cpp
+    src/generated/ShapeType.cxx
+    src/generated/ShapeTypePlugin.cxx
+    src/generated/ShapeTypeSupport.cxx
+)
+
+target_include_directories(rti_3d_shapes PRIVATE 
+    src
+    src/dds
+    src/graphics
+    src/generated
+)
+
+target_link_libraries(rti_3d_shapes PRIVATE
+    RTIConnextDDS::cpp2
+    glfw
+    OpenGL::GL
+)</pre>
+        </section>
+
+        <!-- Step 2: Extended IDL Schema -->
+        <section id="idl-definition" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                <h3 class="text-md font-bold text-white flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 bg-indigo-600/10 text-indigo-400 text-xs font-mono rounded">2</span>
+                    Topic Schema IDL definition (ShapeType.idl)
+                </h3>
+                <button onclick="copyCode('idl-pre')" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copy IDL
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                Matches the exact schema of your custom shapes trajectory definition, featuring extensible structure extensions (`ShapeTypeExtended`) inheritance alongside fill configurations.
+            </p>
+            <pre id="idl-pre" class="p-4 rounded-xl overflow-x-auto text-[11px] code-font text-emerald-400 leading-relaxed">enum ShapeFillKind {
+    SOLID_FILL,
+    TRANSPARENT_FILL,
+    HORIZONTAL_HATCH_FILL,
+    VERTICAL_HATCH_FILL
+};
+
+struct ShapeType
+{
+    string&lt;128&gt; color; //@key
+    long x;
+    long y;
+    long shapesize;
+};//@Extensibility EXTENSIBLE_EXTENSIBILITY 
+
+struct ShapeTypeExtended : ShapeType {
+    ShapeFillKind fillKind;
+    float angle;
+};//@Extensibility EXTENSIBLE_EXTENSIBILITY</pre>
+            <div class="bg-indigo-950/20 border border-indigo-500/25 p-4 rounded-xl text-xs space-y-1">
+                <span class="font-bold text-indigo-400 block"><i class="fa-solid fa-terminal mr-1"></i> RTI Compilation Commands:</span>
+                <p class="text-gray-400 leading-relaxed">
+                    Generate the safe modern C++ bindings from the project root using your target SDK:
+                </p>
+                <code class="block font-mono bg-gray-950 p-2.5 rounded text-indigo-300 mt-2 select-all">rtiddsgen -language C++11 -replace -d src/generated/ src/idl/ShapeType.idl</code>
+            </div>
+        </section>
+
+        <!-- Step 3: Thread Decoupler Queue -->
+        <section id="thread-model" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-850 pb-2">
+                <h3 class="text-md font-bold text-white flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 bg-indigo-600/10 text-indigo-400 text-xs font-mono rounded">3</span>
+                    Thread-Safe Telemetry Queue (thread_queue.hpp)
+                </h3>
+                <button onclick="copyCode('queue-pre')" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copy code
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                Connects both thread contexts securely. To handle type extensibility smoothly, our payload queue encapsulates the full extensible schema structure `ShapeTypeExtended`.
+            </p>
+            <pre id="queue-pre" class="p-4 rounded-xl overflow-x-auto text-[11px] code-font text-amber-400 leading-relaxed">#pragma once
+#include &lt;mutex&gt;
+#include &lt;vector&gt;
+#include "ShapeType.hpp" // Fully resolved type mappings output by rtiddsgen
+
+class ThreadSafeSampleQueue {
+private:
+    std::mutex mutex_;
+    std::vector&lt;ShapeTypeExtended&gt; pending_;
+
+public:
+    void push_sample(const ShapeTypeExtended&amp; sample) {
+        std::lock_guard&lt;std::mutex&gt; lock(mutex_);
+        pending_.push_back(sample);
+    }
+
+    std::vector&lt;ShapeTypeExtended&gt; drain_queue() {
+        std::lock_guard&lt;std::mutex&gt; lock(mutex_);
+        std::vector&lt;ShapeTypeExtended&gt; drained = std::move(pending_);
+        pending_.clear();
+        return drained;
+    }
+};</pre>
+        </section>
+
+        <!-- Step 4: DDS Manager -->
+        <section id="dds-subsystem" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-850 pb-2">
+                <h3 class="text-md font-bold text-white flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 bg-indigo-600/10 text-indigo-400 text-xs font-mono rounded">4</span>
+                    DDS Infrastructure Subsystem manager (dds_manager.cpp)
+                </h3>
+                <button onclick="copyCode('dds-pre')" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copy code
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                Encapsulates your compiled Connext layer. Initializes type-safe modern C++ Participant and Topic instances and sets up DataReaders to receive shapes.
+            </p>
+            <pre id="dds-pre" class="p-4 rounded-xl overflow-x-auto text-[11px] code-font text-cyan-400 leading-relaxed">#include "dds_manager.hpp"
+#include &lt;iostream&gt;
+
+void DdsSubsystemManager::initialize_dds_domain(int32_t domain_id, ThreadSafeSampleQueue* target_queue) {
+    target_queue_ = target_queue;
+
+    try {
+        // 1. Create DomainParticipant bound to standard default QoS
+        participant_ = dds::domain::DomainParticipant(domain_id);
+
+        // 2. Register Topic schema using the type-safe generated class ShapeTypeExtended
+        topic_ = dds::topic::Topic&lt;ShapeTypeExtended&gt;(participant_, "Sphere");
+
+        // 3. Instantiate publisher and subscriber elements
+        publisher_ = dds::pub::Publisher(participant_);
+        subscriber_ = dds::sub::Subscriber(participant_);
+
+        // 4. Create local DataReader with Reliable Quality of Service
+        dds::sub::qos::DataReaderQos reader_qos;
+        reader_qos &lt;&lt; dds::core::policy::Reliability::Reliable();
+        
+        reader_ = dds::sub::DataReader&lt;ShapeTypeExtended&gt;(subscriber_, topic_, reader_qos);
+
+        // 5. Initialize the asynchronous read dispatcher loop
+        std::cout &lt;&lt; "RTI Connext DDS 7.7 Participant initialized on Domain: " &lt;&lt; domain_id &lt;&lt; std::endl;
+        
+        // Non-blocking wait loop pattern
+        while (true) {
+            auto samples = reader_.take();
+            for (const auto&amp; sample : samples) {
+                if (sample.info().valid()) {
+                    target_queue_-&gt;push_sample(sample.data());
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    } catch (const std::exception&amp; ex) {
+        std::cerr &lt;&lt; "RTI Connext DDS 7.7 Initialization Exception: " &lt;&lt; ex.what() &lt;&lt; std::endl;
+    }
+}
+
+void DdsSubsystemManager::publish_local_shape(const std::string&amp; color, int32_t x, int32_t y, int32_t size) {
+    dds::pub::DataWriter&lt;ShapeTypeExtended&gt; writer(publisher_, topic_);
+
+    ShapeTypeExtended sample;
+    sample.color(color);
+    sample.x(x);
+    sample.y(y);
+    sample.shapesize(size);
+    sample.fillKind(ShapeFillKind::SOLID_FILL);
+    sample.angle(0.0f);
+
+    writer.write(sample);
+}</pre>
+        </section>
+
+        <!-- Step 5: OpenGL graphics engine -->
+        <section id="render-engine" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-850 pb-2">
+                <h3 class="text-md font-bold text-white flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 bg-indigo-600/10 text-indigo-400 text-xs font-mono rounded">5</span>
+                    Unlit Rendering Engine Context (graphics_engine.cpp)
+                </h3>
+                <button onclick="copyCode('gfx-pre')" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copy code
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                Initializes GLFW window settings and renders simple, unlit shape primitives (squares and circles) with custom thickness, avoiding lighting artifacts.
+            </p>
+            <pre id="gfx-pre" class="p-4 rounded-xl overflow-x-auto text-[11px] code-font text-orange-400 leading-relaxed">#include "graphics_engine.hpp"
+#include &lt;GLFW/glfw3.h&gt;
+
+void NativeGraphicsEngine::initialize_viewport() {
+    glfwInit();
+    window_ = glfwCreateWindow(1280, 720, "RTI 3D Shapes Workspace", NULL, NULL);
+    glfwMakeContextCurrent(window_);
+    glfwSwapInterval(1); // Lock draw calls synchronously to V-Sync frame rates
+
+    // Initialize clean projection matrices
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, 250, 0, 250, -500, 500);
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void NativeGraphicsEngine::draw_planar_square(float x, float y, float z, float size, float r, float g, float b) {
+    glPushMatrix();
+    glTranslatef(x, y, z);
+    
+    // Constant solid color with unlit basic shaders
+    glColor3f(r, g, b);
+    float half = size / 2.0f;
+
+    // Draw square faces parallel to Z=125 grid slice
+    glBegin(GL_QUADS);
+        glVertex3f(-half, -half, 0.0f);
+        glVertex3f(half, -half, 0.0f);
+        glVertex3f(half, half, 0.0f);
+        glVertex3f(-half, half, 0.0f);
+    glEnd();
+
+    glPopMatrix();
+}</pre>
+        </section>
+
+        <!-- Step 6: Orchestration Entry -->
+        <section id="orchestration" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-850 pb-2">
+                <h3 class="text-md font-bold text-white flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 bg-indigo-600/10 text-indigo-400 text-xs font-mono rounded">6</span>
+                    Application Orchestration & Threads Entry (main.cpp)
+                </h3>
+                <button onclick="copyCode('main-pre')" class="text-xs text-gray-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copy code
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 leading-relaxed">
+                Connects all layers. Boots up GLFW/OpenGL, instantiates your concurrent DDS managers, and drains the thread-safe queue on every frame refresh.
+            </p>
+            <pre id="main-pre" class="p-4 rounded-xl overflow-x-auto text-[11px] code-font text-violet-400 leading-relaxed">#include &lt;iostream&gt;
+#include &lt;thread&gt;
+#include "thread_queue.hpp"
+#include "dds_manager.hpp"
+#include "graphics_engine.hpp"
+
+int main(int argc, char* argv[]) {
+    std::cout &lt;&lt; "Booting RTI native workspace client..." &lt;&lt; std::endl;
+
+    // 1. Initialize thread-safe synchronization queue boundary
+    ThreadSafeSampleQueue sample_queue;
+
+    // 2. Initialize DDS Subsystem manager on independent background execution context
+    DdsSubsystemManager dds_manager;
+    std::thread dds_thread([&amp;]() {
+        dds_manager.initialize_dds_domain(0, &amp;sample_queue);
+    });
+
+    // 3. Initialize Graphics Engine context
+    NativeGraphicsEngine gfx_engine;
+    gfx_engine.initialize_viewport();
+
+    // 4. Synchronous Application Drawing loop
+    while (!glfwWindowShouldClose(gfx_engine.get_window())) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glLoadIdentity();
+
+        // Drain pending queue samples received asynchronously from UDP wire
+        auto samples = sample_queue.drain_queue();
+        for (const auto&amp; sample : samples) {
+            // Unpack ShapeTypeExtended elements cleanly via C++11 modern value-type bindings
+            float r = (sample.color() == "BLUE") ? 0.2f : 0.9f;
+            float g = (sample.color() == "GREEN") ? 0.9f : 0.2f;
+            float b = (sample.color() == "BLUE") ? 0.9f : 0.2f;
+
+            gfx_engine.draw_planar_square(
+                static_cast&lt;float&gt;(sample.x()), 
+                static_cast&lt;float&gt;(sample.y()), 
+                125.0f, // Locked planar Z-coordinate
+                static_cast&lt;float&gt;(sample.shapesize()), 
+                r, g, b
+            );
+        }
+
+        glfwSwapBuffers(gfx_engine.get_window());
+        glfwPollEvents();
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // Yield ~60Hz
+    }
+
+    // Clean shutdown orchestration
+    dds_thread.join();
+    return 0;
+}</pre>
+        </section>
+
+    </main>
+
+    <script>
+        // Copy Code to Clipboard Sandbox Safe Utility
+        function copyCode(elementId) {
+            const codeText = document.getElementById(elementId).textContent;
+            
+            const tempText = document.createElement("textarea");
+            tempText.value = codeText;
+            tempText.style.top = "0";
+            tempText.style.left = "0";
+            tempText.style.position = "fixed";
+            document.body.appendChild(tempText);
+            
+            tempText.focus();
+            tempText.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast("Code block copied to clipboard!");
+                } else {
+                    showToast("Failed to copy code.");
+                }
+            } catch (err) {
+                console.error("Clipped buffer exception: ", err);
+                showToast("Security policy blocked clipboard.");
+            }
+
+            document.body.removeChild(tempText);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-notification');
+            const toastText = document.getElementById('toast-text');
+            toastText.textContent = message;
+
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-100px]', 'opacity-0');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
+ 

@@ -1,0 +1,24 @@
+# Mac OS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# CMake build directories & output
+/[Bb]uild/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+/install/
+
+# Compiled Binaries & Libraries
+/rti_3d_shapes
+*.o
+*.a
+*.so
+*.dylib
+*.out
+
+# RTI Connext generated logs and runtime databases
+*.log
+USER_QOS_PROFILES.xml.bak

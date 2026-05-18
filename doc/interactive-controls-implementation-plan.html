@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Native C++ 3D Shapes Interactive Controls Plan</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #060913;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        pre {
+            background-color: #0b0f19;
+            border: 1px solid #1e293b;
+        }
+        code:not(pre code) {
+            font-family: 'Fira Code', monospace;
+            background-color: #1e293b;
+            color: #93c5fd;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.85em;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="text-gray-300 min-h-screen py-10 px-4 sm:px-6 lg:px-12 flex justify-center">
+
+    <main class="w-full max-w-5xl space-y-10">
+
+        <!-- Header -->
+        <header class="border-b border-gray-800 pb-8 flex items-start gap-4">
+            <span class="p-3 mt-1 bg-indigo-600/10 text-indigo-400 rounded-xl border border-indigo-500/20 shadow-lg">
+                <i class="fa-solid fa-layer-group text-2xl"></i>
+            </span>
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">Implementation Plan: Native C++ 3D Shapes Interactive Controls</h1>
+                <p class="text-sm text-gray-400 leading-relaxed max-w-3xl">
+                    This document outlines the step-by-step engineering plan to replicate the HTML/JS interactive publisher and subscriber controls (from <code>main11.html</code>) inside the native C++ RTI Connext DDS environment provided in the archive.
+                </p>
+                <p class="text-sm text-gray-400 leading-relaxed max-w-3xl mt-2">
+                    To replace the HTML DOM UI, we will integrate <strong>Dear ImGui</strong>, an immediate-mode GUI library perfectly suited for real-time OpenGL/GLFW applications.
+                </p>
+            </div>
+        </header>
+
+        <!-- Step 1 -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <span class="flex items-center justify-center w-8 h-8 bg-indigo-600/20 text-indigo-400 text-sm font-mono rounded border border-indigo-500/30">1</span>
+                UI Framework Integration (Dear ImGui)
+            </h2>
+            <p class="text-sm text-gray-400">
+                Your native app currently uses raw OpenGL and GLFW (<code>src/graphics/graphics_engine.cpp</code>). We need to overlay a UI panel on top of the 3D viewport.
+            </p>
+            <ol class="list-decimal list-outside ml-5 space-y-4 text-sm text-gray-300">
+                <li class="pl-2">
+                    <strong class="text-white">Update <code>CMakeLists.txt</code>:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Add FetchContent or a submodule to pull Dear ImGui into the build system.</li>
+                        <li>Link the ImGui targets (<code>imgui</code>, <code>imgui_impl_glfw</code>, <code>imgui_impl_opengl3</code>) to your <code>rti_3d_shapes</code> executable.</li>
+                    </ul>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Update <code>graphics_engine.hpp</code>:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Add initialization and shutdown methods for ImGui.</li>
+                        <li>Add <code>render_ui()</code> context hooks.</li>
+                    </ul>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Update <code>graphics_engine.cpp</code>:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>In <code>initialize()</code>, add <code>ImGui::CreateContext()</code>, <code>ImGui_ImplGlfw_InitForOpenGL()</code>, and <code>ImGui_ImplOpenGL3_Init()</code>.</li>
+                        <li>In <code>begin_frame()</code>, add the ImGui new frame initializers.</li>
+                        <li>In <code>end_frame()</code>, call <code>ImGui::Render()</code> and <code>ImGui_ImplOpenGL3_RenderDrawData()</code> just before <code>glfwSwapBuffers()</code>.</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Step 2 -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <span class="flex items-center justify-center w-8 h-8 bg-indigo-600/20 text-indigo-400 text-sm font-mono rounded border border-indigo-500/30">2</span>
+                Dynamic State Management (Replacing JS Arrays)
+            </h2>
+            <p class="text-sm text-gray-400">
+                In <code>main11.html</code>, dynamic instances are stored in <code>activePublishers</code> and <code>activeSubscribers</code> arrays. We must replace the hardcoded kinematics in <code>src/main.cpp</code> with C++ equivalents.
+            </p>
+            <ol class="list-decimal list-outside ml-5 space-y-6 text-sm text-gray-300">
+                <li class="pl-2">
+                    <strong class="text-white">Define C++ Enums for Trajectories:</strong>
+                    <pre class="mt-3 p-4 rounded-xl overflow-x-auto text-[13px] code-font text-sky-300">enum class TrajectoryType { PLANE_Z125, BOUNCE_3D, ORBIT };</pre>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Define Publisher Struct (<code>src/main.cpp</code>):</strong>
+                    <p class="text-gray-400 mt-1 mb-2">Create a struct to hold the physics state and DDS identifiers, mimicking the JS payload:</p>
+                    <pre class="p-4 rounded-xl overflow-x-auto text-[13px] code-font text-emerald-300">struct LocalPublisher {
+    std::string id;
+    std::string shape;
+    std::string color;
+    int size;
+    int publish_hz;
+    TrajectoryType trajectory;
+
+    // Kinematics
+    float x, y, z;
+    float vx, vy, vz;
+    std::chrono::steady_clock::time_point last_publish_time;
+};</pre>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Define Subscriber Struct:</strong>
+                    <pre class="mt-3 p-4 rounded-xl overflow-x-auto text-[13px] code-font text-emerald-300">struct LocalSubscriber {
+    std::string id;
+    std::string target_shape;
+    std::string color_filter;
+    int time_filter_ms;
+};</pre>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Create State Vectors:</strong>
+                    <p class="text-gray-400 mt-1">Initialize <code>std::vector&lt;LocalPublisher&gt; active_publishers;</code> and <code>std::vector&lt;LocalSubscriber&gt; active_subscribers;</code> inside <code>main()</code>.</p>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Step 3 -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <span class="flex items-center justify-center w-8 h-8 bg-indigo-600/20 text-indigo-400 text-sm font-mono rounded border border-indigo-500/30">3</span>
+                Building the Interactive ImGui Control Panel
+            </h2>
+            <p class="text-sm text-gray-400">
+                We will translate the HTML forms from the left sidebar of <code>main11.html</code> into ImGui widgets inside <code>src/main.cpp</code>.
+            </p>
+            <ol class="list-decimal list-outside ml-5 space-y-4 text-sm text-gray-300">
+                <li class="pl-2">
+                    <strong class="text-white">Create the Workspace Window:</strong>
+                    <p class="text-gray-400 mt-1 mb-2">Inside the main loop, create the UI panel:</p>
+                    <pre class="p-3 rounded-lg overflow-x-auto text-[13px] code-font text-violet-300">ImGui::Begin("RTI Connext 3D Shapes Workspace");</pre>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Publisher Creation Form:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Use <code>ImGui::Combo</code> for Shape selection (Cube, Sphere, Tetrahedron).</li>
+                        <li>Use <code>ImGui::Combo</code> for Color selection (BLUE, RED, YELLOW, GREEN, PURPLE).</li>
+                        <li>Use <code>ImGui::SliderInt</code> for Size (10 to 30).</li>
+                        <li>Use <code>ImGui::Combo</code> for Publish Frequency (2, 10, 16, 20 Hz).</li>
+                        <li>Use <code>ImGui::RadioButton</code> for Trajectory Strategy (Plane, Bounce 3D, Orbit).</li>
+                    </ul>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Hooking the "Create Publisher" Button:</strong>
+                    <pre class="mt-3 p-4 rounded-xl overflow-x-auto text-[13px] code-font text-sky-300">if (ImGui::Button("Initialize DataWriter Instance")) {
+    // 1. Generate new LocalPublisher with initial physics state
+    // 2. Call dds_manager.create_writer(selected_shape, selected_color)
+    // 3. Add to active_publishers vector
+}</pre>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Subscriber Creation Form:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Use <code>ImGui::Combo</code> for Target Shape (All, Cube, Sphere, Tetrahedron).</li>
+                        <li>Use <code>ImGui::Combo</code> for Color Filter.</li>
+                        <li>Hook the "Create Subscriber" button to call <code>dds_manager.create_reader(...)</code>.</li>
+                    </ul>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Active Entities Registry Table:</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-1 text-gray-400">
+                        <li>Use <code>ImGui::BeginTable</code> to list items in <code>active_publishers</code> and <code>active_subscribers</code>.</li>
+                        <li>Add a "Delete" button next to each row to call <code>dds_manager.delete_writer(...)</code> and remove it from the vector.</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Step 4 -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <span class="flex items-center justify-center w-8 h-8 bg-indigo-600/20 text-indigo-400 text-sm font-mono rounded border border-indigo-500/30">4</span>
+                Porting the Physics & Kinematics Engine
+            </h2>
+            <p class="text-sm text-gray-400">
+                The physics logic currently hardcoded in <code>main.cpp</code> for one square and one circle needs to be generalized to loop over the <code>active_publishers</code> vector, perfectly matching the physics logic in <code>main11.html</code>.
+            </p>
+            <ol class="list-decimal list-outside ml-5 space-y-4 text-sm text-gray-300">
+                <li class="pl-2">
+                    <strong class="text-white">Time Delta Calculation:</strong>
+                    <p class="text-gray-400 mt-1">Calculate <code>dt</code> and <code>global_time_counter</code> at the top of the main loop to drive smooth physics regardless of frame rate.</p>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">The Kinematics Loop:</strong>
+                    <pre class="mt-3 p-4 rounded-xl overflow-x-auto text-[13px] code-font text-yellow-300">for (auto& pub : active_publishers) {
+    if (pub.trajectory == TrajectoryType::PLANE_Z125) {
+        pub.x += pub.vx; pub.y += pub.vy;
+        // Apply 2D wall bounds check
+    } 
+    else if (pub.trajectory == TrajectoryType::BOUNCE_3D) {
+        pub.x += pub.vx; pub.y += pub.vy; pub.z += pub.vz;
+        // Apply 3D wall bounds check (0 to 250 on all axes)
+    }
+    else if (pub.trajectory == TrajectoryType::ORBIT) {
+        // Apply deterministic trigonometric path based on global_time_counter
+        pub.x = 125.0f + std::cos(global_time) * 80.0f;
+        // ... apply Y and Z logic from README.html
+    }
+
+    // Publish logic based on pub.publish_hz
+    if (time_since_last_publish >= (1.0f / pub.publish_hz)) {
+        dds_manager.write_shape_sample(pub.shape, pub.color, pub.x, pub.y, pub.z, pub.size, ...);
+    }
+}</pre>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Step 5 -->
+        <section class="bg-gray-900/40 border border-gray-850 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3 border-b border-gray-800 pb-3">
+                <span class="flex items-center justify-center w-8 h-8 bg-indigo-600/20 text-indigo-400 text-sm font-mono rounded border border-indigo-500/30">5</span>
+                Rendering the Dynamic Data
+            </h2>
+            <p class="text-sm text-gray-400">
+                Finally, the <code>GraphicsEngine</code> needs to render the dynamic data instead of hardcoded primitive calls.
+            </p>
+            <ol class="list-decimal list-outside ml-5 space-y-3 text-sm text-gray-300">
+                <li class="pl-2">
+                    <strong class="text-white">Render Local Writers (Solid Shapes):</strong>
+                    <p class="text-gray-400 mt-1">Iterate through <code>active_publishers</code> and call <code>graphics.draw_cube</code>, <code>draw_sphere</code>, etc., at their current <code>x, y, z</code> coordinates.</p>
+                </li>
+                <li class="pl-2">
+                    <strong class="text-white">Render Remote Readers (Wireframes & Trails):</strong>
+                    <ul class="list-disc list-outside ml-5 mt-2 space-y-2 text-gray-400">
+                        <li>Iterate through the <code>shape_registry</code> (data populated by <code>sample_queue.drain_queue()</code>).</li>
+                        <li>Check if the incoming shape matches any filter in <code>active_subscribers</code>.</li>
+                        <li>If it matches, render the wireframe representation (<code>graphics.draw_cube(..., wireframe=true)</code>).</li>
+                        <li>To implement the "Receive Cache Size" trail (Ghost meshes), maintain a circular buffer of the last N coordinates for each discovered instance in <code>shape_registry</code> and render them with decreasing opacity.</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Summary Checklist -->
+        <section class="bg-gray-950 border border-gray-800 p-6 rounded-2xl space-y-4 shadow-lg">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-green-400"></i> Summary Checklist for Implementation
+            </h2>
+            <ul class="space-y-3 text-sm text-gray-400 mt-4">
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Add Dear ImGui to <code>CMakeLists.txt</code>.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Initialize ImGui in <code>graphics_engine.cpp</code>.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Remove hardcoded physics from <code>main.cpp</code>.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Define <code>LocalPublisher</code> and <code>LocalSubscriber</code> vectors.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Write the ImGui UI layout inside the <code>main.cpp</code> render loop.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Hook UI buttons to <code>DdsSubsystemManager</code> API methods.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Implement the <code>switch(trajectory)</code> kinematics loop.</span>
+                </li>
+                <li class="flex items-center gap-3">
+                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500/50">
+                    <span>Update OpenGL rendering to iterate over dynamic vectors.</span>
+                </li>
+            </ul>
+        </section>
+
+    </main>
+
+</body>
+</html>
