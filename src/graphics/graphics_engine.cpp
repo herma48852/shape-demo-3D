@@ -95,6 +95,10 @@ bool GraphicsEngine::initialize(int width, int height, const std::string& title)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    
+    // PERMANENT FIX: Disable reading and writing of imgui.ini entirely.
+    io.IniFilename = nullptr;
+
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(window_, true);
@@ -103,6 +107,7 @@ bool GraphicsEngine::initialize(int width, int height, const std::string& title)
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
+    glShadeModel(GL_SMOOTH); 
     initialize_projection(width_, height_);
 
     is_initialized_ = true;
@@ -167,7 +172,6 @@ void GraphicsEngine::handle_cursor_pos(double x, double y) {
     last_mouse_x_ = x;
     last_mouse_y_ = y;
 
-    // BULLETPROOF FIX: If ImGui wants the mouse, ignore all dragging for the 3D scene.
     if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse) {
         return;
     }
@@ -225,7 +229,7 @@ void GraphicsEngine::draw_coordinate_grid() {
         glVertex3f(0.0f, 0.0f, 250.0f); glVertex3f(250.0f, 0.0f, 250.0f);
         glVertex3f(250.0f, 0.0f, 250.0f); glVertex3f(250.0f, 250.0f, 250.0f);
         glVertex3f(250.0f, 250.0f, 250.0f); glVertex3f(0.0f, 250.0f, 250.0f);
-        glVertex3f(0.0f, 250.0f, 0.0f); glVertex3f(0.0f, 0.0f, 250.0f);
+        glVertex3f(0.0f, 250.0f, 250.0f); glVertex3f(0.0f, 0.0f, 250.0f);
 
         glVertex3f(0.0f, 0.0f, 0.0f); glVertex3f(0.0f, 0.0f, 250.0f);
         glVertex3f(250.0f, 0.0f, 0.0f); glVertex3f(250.0f, 0.0f, 250.0f);
@@ -244,14 +248,21 @@ void GraphicsEngine::draw_coordinate_grid() {
     glEnd();
 }
 
-void GraphicsEngine::draw_cube(float x, float y, float z, float size, float r, float g, float b, bool wireframe, float angle) {
+void GraphicsEngine::draw_cube(float x, float y, float z, float size, float r, float g, float b, bool wireframe, float angle, bool thin) {
     glPushMatrix();
     glTranslatef(x, y, z);
-    glRotatef(angle, 0.4f, 0.8f, 0.4f);
-    glColor3f(r, g, b);
+    
+    if (thin) {
+        glRotatef(angle, 0.0f, 0.0f, 1.0f); 
+        glScalef(1.0f, 1.0f, 4.0f / size);       
+    } else {
+        glRotatef(angle, 0.4f, 0.8f, 0.4f); 
+    }
+
     float h = size / 2.0f;
 
     if (wireframe) {
+        glColor3f(r, g, b);
         glBegin(GL_LINES);
             glVertex3f(-h, -h,  h); glVertex3f( h, -h,  h);
             glVertex3f( h, -h,  h); glVertex3f( h,  h,  h);
@@ -268,66 +279,226 @@ void GraphicsEngine::draw_cube(float x, float y, float z, float size, float r, f
         glEnd();
     } else {
         glBegin(GL_QUADS);
+            glColor3f(r * 1.0f, g * 1.0f, b * 1.0f);
             glVertex3f(-h, -h,  h); glVertex3f( h, -h,  h); glVertex3f( h,  h,  h); glVertex3f(-h,  h,  h);
+            glColor3f(r * 0.5f, g * 0.5f, b * 0.5f);
             glVertex3f(-h, -h, -h); glVertex3f(-h,  h, -h); glVertex3f( h,  h, -h); glVertex3f( h, -h, -h);
+            glColor3f(r * 0.9f, g * 0.9f, b * 0.9f);
             glVertex3f(-h,  h, -h); glVertex3f(-h,  h,  h); glVertex3f( h,  h,  h); glVertex3f( h,  h, -h);
+            glColor3f(r * 0.4f, g * 0.4f, b * 0.4f);
             glVertex3f(-h, -h, -h); glVertex3f( h, -h, -h); glVertex3f( h, -h,  h); glVertex3f(-h, -h,  h);
+            glColor3f(r * 0.75f, g * 0.75f, b * 0.75f);
             glVertex3f( h, -h, -h); glVertex3f( h,  h, -h); glVertex3f( h,  h,  h); glVertex3f( h, -h,  h);
+            glColor3f(r * 0.65f, g * 0.65f, b * 0.65f);
             glVertex3f(-h, -h, -h); glVertex3f(-h, -h,  h); glVertex3f(-h,  h,  h); glVertex3f(-h,  h, -h);
         glEnd();
     }
     glPopMatrix();
 }
 
-void GraphicsEngine::draw_sphere(float x, float y, float z, float radius, float r, float g, float b, bool wireframe, float angle) {
+void GraphicsEngine::draw_sphere(float x, float y, float z, float radius, float r, float g, float b, bool wireframe, float angle, bool thin) {
     glPushMatrix();
     glTranslatef(x, y, z);
-    glRotatef(angle, 0.4f, 0.8f, 0.4f);
-    glColor3f(r, g, b);
-    int lats = 12, longs = 12;
+    glRotatef(angle, 0.0f, 0.0f, 1.0f);
 
-    for (int i = 0; i <= lats; i++) {
-        double lat0 = M_PI * (-0.5 + static_cast<double>(i - 1) / lats);
-        double z0 = sin(lat0), r0 = cos(lat0);
-        double lat1 = M_PI * (-0.5 + static_cast<double>(i) / lats);
-        double z1 = sin(lat1), r1 = cos(lat1);
+    if (thin) {
+        // 2D Publisher Mapping: Render as an extruded flat disk cylinder instead of a squashed sphere
+        float thickness = 4.0f;
+        int segments = 24;
 
-        if (wireframe) glBegin(GL_LINE_LOOP);
-        else glBegin(GL_QUAD_STRIP);
+        if (wireframe) {
+            glColor3f(r, g, b);
+            // Draw Top Circle
+            glBegin(GL_LINE_LOOP);
+            for (int i = 0; i < segments; ++i) {
+                float theta = 2.0f * M_PI * float(i) / float(segments);
+                glVertex3f(radius * cos(theta), radius * sin(theta), thickness / 2.0f);
+            }
+            glEnd();
+            // Draw Bottom Circle
+            glBegin(GL_LINE_LOOP);
+            for (int i = 0; i < segments; ++i) {
+                float theta = 2.0f * M_PI * float(i) / float(segments);
+                glVertex3f(radius * cos(theta), radius * sin(theta), -thickness / 2.0f);
+            }
+            glEnd();
+            // Draw Vertical Connecting Edges
+            glBegin(GL_LINES);
+            for (int i = 0; i < segments; i += 4) {
+                float theta = 2.0f * M_PI * float(i) / float(segments);
+                float cx = radius * cos(theta);
+                float cy = radius * sin(theta);
+                glVertex3f(cx, cy, thickness / 2.0f);
+                glVertex3f(cx, cy, -thickness / 2.0f);
+            }
+            glEnd();
+        } else {
+            // Render Top Cap (Brightest)
+            glColor3f(r * 1.0f, g * 1.0f, b * 1.0f);
+            glBegin(GL_TRIANGLE_FAN);
+            glVertex3f(0.0f, 0.0f, thickness / 2.0f);
+            for (int i = 0; i <= segments; ++i) {
+                float theta = 2.0f * M_PI * float(i) / float(segments);
+                glVertex3f(radius * cos(theta), radius * sin(theta), thickness / 2.0f);
+            }
+            glEnd();
 
-        for (int j = 0; j <= longs; j++) {
-            double lng = 2.0 * M_PI * static_cast<double>(j) / longs;
-            double x_coord = cos(lng), y_coord = sin(lng);
-            glVertex3f(static_cast<float>(x_coord * r0 * radius), static_cast<float>(y_coord * r0 * radius), static_cast<float>(z0 * radius));
-            glVertex3f(static_cast<float>(x_coord * r1 * radius), static_cast<float>(y_coord * r1 * radius), static_cast<float>(z1 * radius));
+            // Render Bottom Cap (Darkest)
+            glColor3f(r * 0.4f, g * 0.4f, b * 0.4f);
+            glBegin(GL_TRIANGLE_FAN);
+            glVertex3f(0.0f, 0.0f, -thickness / 2.0f);
+            for (int i = segments; i >= 0; --i) {
+                float theta = 2.0f * M_PI * float(i) / float(segments);
+                glVertex3f(radius * cos(theta), radius * sin(theta), -thickness / 2.0f);
+            }
+            glEnd();
+
+            // Render Extruded Rim Walls with Shading Match
+            glBegin(GL_QUAD_STRIP);
+            for (int i = 0; i <= segments; ++i) {
+                float theta = 2.0f * M_PI * float(i) / float(segments);
+                float cx = cos(theta);
+                float cy = sin(theta);
+                // Simple rim shading based on normal direction
+                float shade = 0.6f + 0.3f * (cx * 0.707f + cy * 0.707f);
+                glColor3f(r * shade, g * shade, b * shade);
+                glVertex3f(radius * cx, radius * cy, thickness / 2.0f);
+                glVertex3f(radius * cx, radius * cy, -thickness / 2.0f);
+            }
+            glEnd();
         }
-        glEnd();
+    } else {
+        // Standard 3D Sphere Pipeline
+        glRotatef(angle, 0.4f, 0.8f, 0.4f); 
+        int lats = 12, longs = 12;
+
+        for (int i = 0; i <= lats; i++) {
+            double lat0 = M_PI * (-0.5 + static_cast<double>(i - 1) / lats);
+            double z0 = sin(lat0), r0 = cos(lat0);
+            double lat1 = M_PI * (-0.5 + static_cast<double>(i) / lats);
+            double z1 = sin(lat1), r1 = cos(lat1);
+
+            if (wireframe) {
+                glColor3f(r, g, b);
+                glBegin(GL_LINE_LOOP);
+            } else {
+                glBegin(GL_QUAD_STRIP);
+            }
+
+            for (int j = 0; j <= longs; j++) {
+                double lng = 2.0 * M_PI * static_cast<double>(j) / longs;
+                double x_coord = cos(lng), y_coord = sin(lng);
+                
+                if (!wireframe) {
+                    float nx0 = static_cast<float>(x_coord * r0);
+                    float ny0 = static_cast<float>(y_coord * r0);
+                    float nz0 = static_cast<float>(z0);
+                    float dot0 = nx0 * 0.577f + ny0 * 0.577f + nz0 * 0.577f;
+                    float shade0 = 0.65f + 0.35f * dot0;
+                    glColor3f(r * shade0, g * shade0, b * shade0);
+                }
+                glVertex3f(static_cast<float>(x_coord * r0 * radius), static_cast<float>(y_coord * r0 * radius), static_cast<float>(z0 * radius));
+
+                if (!wireframe) {
+                    float nx1 = static_cast<float>(x_coord * r1);
+                    float ny1 = static_cast<float>(y_coord * r1);
+                    float nz1 = static_cast<float>(z1);
+                    float dot1 = nx1 * 0.577f + ny1 * 0.577f + nz1 * 0.577f;
+                    float shade1 = 0.65f + 0.35f * dot1;
+                    glColor3f(r * shade1, g * shade1, b * shade1);
+                }
+                glVertex3f(static_cast<float>(x_coord * r1 * radius), static_cast<float>(y_coord * r1 * radius), static_cast<float>(z1 * radius));
+            }
+            glEnd();
+        }
     }
     glPopMatrix();
 }
 
-void GraphicsEngine::draw_tetrahedron(float x, float y, float z, float size, float r, float g, float b, bool wireframe, float angle) {
+void GraphicsEngine::draw_tetrahedron(float x, float y, float z, float size, float r, float g, float b, bool wireframe, float angle, bool thin) {
     glPushMatrix();
     glTranslatef(x, y, z);
-    glRotatef(angle, 0.4f, 0.8f, 0.4f);
-    glColor3f(r, g, b);
-    float h = size * 0.816f, rad = size * 0.5f;
+    glRotatef(angle, 0.0f, 0.0f, 1.0f);
 
-    float v0[3] = { 0.0f, h, 0.0f };
-    float v1[3] = { -rad, 0.0f, rad };
-    float v2[3] = { rad, 0.0f, rad };
-    float v3[3] = { 0.0f, 0.0f, -rad * 1.5f };
+    if (thin) {
+        // 2D Publisher Mapping: Render as an extruded Triangular Prism instead of a squashed pyramid
+        float thickness = 4.0f;
+        float half_t = thickness / 2.0f;
+        float rad = size * 0.5f;
 
-    auto draw_face = [&](float* p1, float* p2, float* p3) {
-        if (wireframe) glBegin(GL_LINE_LOOP);
-        else glBegin(GL_TRIANGLES);
-        glVertex3fv(p1); glVertex3fv(p2); glVertex3fv(p3);
-        glEnd();
-    };
+        // Symmetric Equilateral Triangle coordinates aligned with the base space
+        float tx0 = 0.0f,         ty0 = rad;
+        float tx1 = -rad * 0.866f, ty1 = -rad * 0.5f;
+        float tx2 = rad * 0.866f,  ty2 = -rad * 0.5f;
 
-    draw_face(v0, v1, v2);
-    draw_face(v0, v2, v3);
-    draw_face(v0, v3, v1);
-    draw_face(v1, v3, v2);
+        if (wireframe) {
+            glColor3f(r, g, b);
+            // Top Cap Wireframe
+            glBegin(GL_LINE_LOOP);
+                glVertex3f(tx0, ty0, half_t); glVertex3f(tx1, ty1, half_t); glVertex3f(tx2, ty2, half_t);
+            glEnd();
+            // Bottom Cap Wireframe
+            glBegin(GL_LINE_LOOP);
+                glVertex3f(tx0, ty0, -half_t); glVertex3f(tx1, ty1, -half_t); glVertex3f(tx2, ty2, -half_t);
+            glEnd();
+            // Link pillars
+            glBegin(GL_LINES);
+                glVertex3f(tx0, ty0, half_t); glVertex3f(tx0, ty0, -half_t);
+                glVertex3f(tx1, ty1, half_t); glVertex3f(tx1, ty1, -half_t);
+                glVertex3f(tx2, ty2, half_t); glVertex3f(tx2, ty2, -half_t);
+            glEnd();
+        } else {
+            // Render Top Face (Flat Equilateral Face)
+            glColor3f(r * 1.0f, g * 1.0f, b * 1.0f);
+            glBegin(GL_TRIANGLES);
+                glVertex3f(tx0, ty0, half_t); glVertex3f(tx1, ty1, half_t); glVertex3f(tx2, ty2, half_t);
+            glEnd();
+
+            // Render Bottom Face (Darkest)
+            glColor3f(r * 0.4f, g * 0.4f, b * 0.4f);
+            glBegin(GL_TRIANGLES);
+                glVertex3f(tx0, ty0, -half_t); glVertex3f(tx2, ty2, -half_t); glVertex3f(tx1, ty1, -half_t);
+            glEnd();
+
+            // Render Rectangular Side Wall Panels with distinct directional shading
+            glBegin(GL_QUADS);
+                // Side Panel 1
+                glColor3f(r * 0.85f, g * 0.85f, b * 0.85f);
+                glVertex3f(tx0, ty0, half_t); glVertex3f(tx1, ty1, half_t); glVertex3f(tx1, ty1, -half_t); glVertex3f(tx0, ty0, -half_t);
+                // Side Panel 2
+                glColor3f(r * 0.6f, g * 0.6f, b * 0.6f);
+                glVertex3f(tx1, ty1, half_t); glVertex3f(tx2, ty2, half_t); glVertex3f(tx2, ty2, -half_t); glVertex3f(tx1, ty1, -half_t);
+                // Side Panel 3
+                glColor3f(r * 0.75f, g * 0.75f, b * 0.75f);
+                glVertex3f(tx2, ty2, half_t); glVertex3f(tx0, ty0, half_t); glVertex3f(tx0, ty0, -half_t); glVertex3f(tx2, ty2, -half_t);
+            glEnd();
+        }
+    } else {
+        // Standard 3D Tetrahedron Pipeline
+        glRotatef(angle, 0.4f, 0.8f, 0.4f); 
+        float h = size * 0.816f, rad = size * 0.5f;
+
+        float v0[3] = { 0.0f, h, 0.0f };
+        float v1[3] = { -rad, 0.0f, rad };
+        float v2[3] = { rad, 0.0f, rad };
+        float v3[3] = { 0.0f, 0.0f, -rad * 1.5f };
+
+        auto draw_face = [&](float* p1, float* p2, float* p3, float shade) {
+            if (wireframe) {
+                glColor3f(r, g, b);
+                glBegin(GL_LINE_LOOP);
+            } else {
+                glColor3f(r * shade, g * shade, b * shade);
+                glBegin(GL_TRIANGLES);
+            }
+            glVertex3fv(p1); glVertex3fv(p2); glVertex3fv(p3);
+            glEnd();
+        };
+
+        draw_face(v0, v1, v2, 1.0f);
+        draw_face(v0, v2, v3, 0.85f);
+        draw_face(v0, v3, v1, 0.65f);
+        draw_face(v1, v3, v2, 0.5f);
+    }
     glPopMatrix();
 }

@@ -74,6 +74,7 @@ struct VisualizerShapeInstance {
     std::chrono::steady_clock::time_point last_sample_time;
     std::chrono::steady_clock::time_point last_accepted_time;
     std::vector<VisualizerSample> history;
+    bool is_2d = true; // Flag determining if publisher is 2D
 };
 
 // Maps color keys to standard floating-point RGB representations
@@ -83,6 +84,9 @@ void get_color_rgb(const std::string& color_str, float& r, float& g, float& b) {
     else if (color_str == "YELLOW" || color_str == "#eab308") { r = 0.92f; g = 0.70f; b = 0.03f; }
     else if (color_str == "GREEN" || color_str == "#10b981") { r = 0.06f; g = 0.73f; b = 0.51f; }
     else if (color_str == "PURPLE" || color_str == "#a855f7") { r = 0.66f; g = 0.33f; b = 0.97f; }
+    else if (color_str == "CYAN") { r = 0.02f; g = 0.71f; b = 0.84f; }
+    else if (color_str == "MAGENTA") { r = 0.93f; g = 0.25f; b = 0.68f; }
+    else if (color_str == "ORANGE") { r = 0.96f; g = 0.58f; b = 0.11f; }
     else { r = 0.8f; g = 0.8f; b = 0.8f; } 
 }
 
@@ -109,12 +113,12 @@ int main(int argc, char* argv[]) {
     std::cout << "[System] Initializing Hardware-Accelerated Graphics Engine..." << std::endl;
     
     GraphicsEngine graphics;
-    if (!graphics.initialize(1280, 720, "RTI DDS 3D Shapes Workspace")) {
+    if (!graphics.initialize(1280, 720, "3D Shapes Demo")) {
         std::cerr << "[Fatal] OpenGL context initialization failed." << std::endl;
         return EXIT_FAILURE;
     }
 
-    // --- State Vectors (Completely Empty at Startup!) ---
+    // --- State Vectors ---
     std::vector<LocalPublisher> active_publishers;
     std::vector<LocalSubscriber> active_subscribers;
     std::map<std::string, VisualizerShapeInstance> shape_registry;
@@ -122,7 +126,7 @@ int main(int argc, char* argv[]) {
     // ImGui Publisher Form State Variables
     const char* shapes[] = { "Square", "Circle", "Triangle" };
     int shape_idx = 0;
-    const char* colors[] = { "BLUE", "RED", "YELLOW", "GREEN", "PURPLE" };
+    const char* colors[] = { "BLUE", "RED", "YELLOW", "GREEN", "PURPLE", "CYAN", "MAGENTA", "ORANGE" };
     int color_idx = 0;
     int size_val = 15;
     const char* trajectories[] = { "PLANE_Z125", "BOUNCE_3D", "ORBIT" };
@@ -132,18 +136,14 @@ int main(int argc, char* argv[]) {
     // ImGui Subscriber Form State Variables
     const char* sub_shapes[] = { "All", "Square", "Circle", "Triangle" };
     int sub_shape_idx = 0;
-    const char* sub_colors[] = { "All", "BLUE", "RED", "YELLOW", "GREEN", "PURPLE" };
+    const char* sub_colors[] = { "All", "BLUE", "RED", "YELLOW", "GREEN", "PURPLE", "CYAN", "MAGENTA", "ORANGE" };
     int sub_color_idx = 0;
+    
     int sub_time_filter_ms = 0;
     int sub_history_depth = 6;
 
     double global_time_counter = 0.0;
     auto last_frame_time = std::chrono::steady_clock::now();
-
-    // Initialize auto-readers for standard shape topics
-    dds_manager.create_reader("Square");
-    dds_manager.create_reader("Circle");
-    dds_manager.create_reader("Triangle");
 
     std::cout << "[System] Application successfully loaded. Workspace ready!" << std::endl;
 
@@ -211,13 +211,13 @@ int main(int argc, char* argv[]) {
             const auto& sample = wrapper.data;
             std::string topic = wrapper.topic_name;
 
-            // Enforce User-Selected Subscription Filters ONLY (Strict matching)
-            bool is_matched = false;
+            // Resolve target active subscriber matching this incoming stream
+            const LocalSubscriber* matching_sub = nullptr;
             for (const auto& sub : active_subscribers) {
                 bool shape_match = (sub.target_shape == "All" || sub.target_shape == topic);
                 bool color_match = (sub.color_filter == "All" || sub.color_filter == sample.color);
                 if (shape_match && color_match) {
-                    is_matched = true;
+                    matching_sub = &sub;
                     break;
                 }
             }
@@ -232,22 +232,44 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            if (is_matched && !is_self_published) {
+            // Apply telemetry filter only using the captured QoS values of the initialized subscription
+            if (matching_sub != nullptr && !is_self_published) {
                 std::string key = topic + "_" + sample.color;
                 VisualizerShapeInstance& inst = shape_registry[key];
+
+                // --- GHOST & DUPLICATE SAMPLE AVOIDANCE ---
+                // Since VOLATILE durability doesn't burst, history compression upon reset is 
+                // caused by ghost readers (duplicate DataReaders on the same topic) pushing 
+                // redundant samples into the queue in the exact same frame. 
+                // This block catches and ignores those identical duplicate samples.
+                if (inst.last_sample_time != std::chrono::steady_clock::time_point() &&
+                    static_cast<float>(sample.x) == inst.current_x && 
+                    static_cast<float>(sample.y) == inst.current_y && 
+                    static_cast<float>(sample.z) == inst.current_z && 
+                    sample.angle == inst.current_angle) {
+                    continue; 
+                }
+
                 inst.shape_topic = topic;
                 inst.color = sample.color;
                 inst.size = sample.shapesize;
 
-                // Time Filter threshold separation (ms) queried dynamically from the live slider
+                // Identify if the incoming source is publishing 3D coordinates (not 2D z=125)
+                if (sample.z != 125) {
+                    inst.is_2d = false;
+                }
+
+                // Query captured parameters matching this active subscriber
+                int active_time_filter_ms = matching_sub->time_filter_ms;
+                int active_history_depth = matching_sub->history_depth;
+
                 auto time_since_last_accept = std::chrono::duration_cast<std::chrono::milliseconds>(
                     current_time - inst.last_accepted_time
                 ).count();
 
-                if (time_since_last_accept >= sub_time_filter_ms) {
+                if (time_since_last_accept >= active_time_filter_ms) {
                     inst.last_accepted_time = current_time;
 
-                    // Push current state to historical trace queue before updating
                     if (inst.last_sample_time != std::chrono::steady_clock::time_point()) {
                         VisualizerSample prev;
                         prev.x = inst.current_x;
@@ -264,9 +286,9 @@ int main(int argc, char* argv[]) {
                     inst.current_angle = sample.angle;
                 }
 
-                // Dynamically size-cap history vector in real-time according to the live slider
-                if (inst.history.size() > static_cast<size_t>(sub_history_depth)) {
-                    inst.history.resize(sub_history_depth);
+                // Dynamically size-cap history vector in real-time according to the active subscription depth
+                if (inst.history.size() > static_cast<size_t>(active_history_depth)) {
+                    inst.history.resize(active_history_depth);
                 }
 
                 inst.last_sample_time = current_time;
@@ -276,16 +298,17 @@ int main(int argc, char* argv[]) {
         graphics.begin_frame();
         graphics.draw_coordinate_grid();
 
-        // 1. Draw Local Publishers (Solid Shading with local dynamic rotation)
+        // 1. Draw Local Publishers (Solid Shading with local dynamic rotation and thickness logic)
         for (const auto& pub : active_publishers) {
             float r, g, b;
             get_color_rgb(pub.color, r, g, b);
-            if (pub.shape == "Square") graphics.draw_cube(pub.x, pub.y, pub.z, pub.size, r, g, b, false, pub.angle);
-            else if (pub.shape == "Circle") graphics.draw_sphere(pub.x, pub.y, pub.z, pub.size / 2.0f, r, g, b, false, pub.angle);
-            else if (pub.shape == "Triangle") graphics.draw_tetrahedron(pub.x, pub.y, pub.z, pub.size, r, g, b, false, pub.angle);
+            bool thin = (pub.trajectory == TrajectoryType::PLANE_Z125);
+            if (pub.shape == "Square") graphics.draw_cube(pub.x, pub.y, pub.z, pub.size, r, g, b, false, pub.angle, thin);
+            else if (pub.shape == "Circle") graphics.draw_sphere(pub.x, pub.y, pub.z, pub.size / 2.0f, r, g, b, false, pub.angle, thin);
+            else if (pub.shape == "Triangle") graphics.draw_tetrahedron(pub.x, pub.y, pub.z, pub.size, r, g, b, false, pub.angle, thin);
         }
 
-        // 2. Draw Received Telemetry Subscribers (Glowing Wireframes & Historical Trails)
+        // 2. Draw Received Telemetry Subscribers (Glowing Wireframes & Historical Trails with thickness logic)
         for (auto it = shape_registry.begin(); it != shape_registry.end(); ) {
             std::chrono::duration<double> age = current_time - it->second.last_sample_time;
             if (age.count() > 3.0) {
@@ -297,19 +320,31 @@ int main(int argc, char* argv[]) {
             get_color_rgb(it->second.color, r, g, b);
             std::string normalized_topic = it->second.shape_topic;
             float draw_size = it->second.size * 1.25f; // Draw slightly larger to cage the solid object
+            bool thin = it->second.is_2d; // Thin if subscribed to a 2D publisher
             
-            // Draw Main "Head" Wireframe Indicator with received network angle
-            if (normalized_topic == "Square" || normalized_topic == "Cube") {
-                graphics.draw_cube(it->second.current_x, it->second.current_y, it->second.current_z, draw_size, r, g, b, true, it->second.current_angle);
-            } else if (normalized_topic == "Circle" || normalized_topic == "Sphere") {
-                graphics.draw_sphere(it->second.current_x, it->second.current_y, it->second.current_z, draw_size / 2.0f, r, g, b, true, it->second.current_angle);
-            } else if (normalized_topic == "Triangle" || normalized_topic == "Tetrahedron") {
-                graphics.draw_tetrahedron(it->second.current_x, it->second.current_y, it->second.current_z, draw_size, r, g, b, true, it->second.current_angle);
+            // Resolve active history depth value configured for this visualizer shape topic
+            int active_history_depth = 6; 
+            for (const auto& sub : active_subscribers) {
+                bool shape_match = (sub.target_shape == "All" || sub.target_shape == normalized_topic);
+                bool color_match = (sub.color_filter == "All" || sub.color_filter == it->second.color);
+                if (shape_match && color_match) {
+                    active_history_depth = sub.history_depth;
+                    break;
+                }
             }
 
-            // Truncate the history trail vector instantly as soon as the slider changes
-            if (it->second.history.size() > static_cast<size_t>(sub_history_depth)) {
-                it->second.history.resize(sub_history_depth);
+            // Draw Main "Head" Wireframe Indicator with received network angle
+            if (normalized_topic == "Square" || normalized_topic == "Cube") {
+                graphics.draw_cube(it->second.current_x, it->second.current_y, it->second.current_z, draw_size, r, g, b, true, it->second.current_angle, thin);
+            } else if (normalized_topic == "Circle" || normalized_topic == "Sphere") {
+                graphics.draw_sphere(it->second.current_x, it->second.current_y, it->second.current_z, draw_size / 2.0f, r, g, b, true, it->second.current_angle, thin);
+            } else if (normalized_topic == "Triangle" || normalized_topic == "Tetrahedron") {
+                graphics.draw_tetrahedron(it->second.current_x, it->second.current_y, it->second.current_z, draw_size, r, g, b, true, it->second.current_angle, thin);
+            }
+
+            // Truncate the history trail vector instantly as soon as the active subscriber value says so
+            if (it->second.history.size() > static_cast<size_t>(active_history_depth)) {
+                it->second.history.resize(active_history_depth);
             }
 
             // Draw Trailing History Samples (with paired chronological historical angles)
@@ -327,11 +362,11 @@ int main(int argc, char* argv[]) {
                 float hb = b * fade_factor;
 
                 if (normalized_topic == "Square" || normalized_topic == "Cube") {
-                    graphics.draw_cube(hist.x, hist.y, hist.z, hist_size, hr, hg, hb, false, hist.angle);
+                    graphics.draw_cube(hist.x, hist.y, hist.z, hist_size, hr, hg, hb, false, hist.angle, thin);
                 } else if (normalized_topic == "Circle" || normalized_topic == "Sphere") {
-                    graphics.draw_sphere(hist.x, hist.y, hist.z, hist_size / 2.0f, hr, hg, hb, false, hist.angle);
+                    graphics.draw_sphere(hist.x, hist.y, hist.z, hist_size / 2.0f, hr, hg, hb, false, hist.angle, thin);
                 } else if (normalized_topic == "Triangle" || normalized_topic == "Tetrahedron") {
-                    graphics.draw_tetrahedron(hist.x, hist.y, hist.z, hist_size, hr, hg, hb, false, hist.angle);
+                    graphics.draw_tetrahedron(hist.x, hist.y, hist.z, hist_size, hr, hg, hb, false, hist.angle, thin);
                 }
             }
             
@@ -343,7 +378,7 @@ int main(int argc, char* argv[]) {
 
         ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(350, 680), ImGuiCond_FirstUseEver);
-        ImGui::Begin("RTI Connext 3D Workspace", nullptr, ImGuiWindowFlags_NoCollapse);
+        ImGui::Begin("3D Shapes Demo", nullptr, ImGuiWindowFlags_NoCollapse);
         
         // =====================================================================
         // SECTION 1: PUBLISHER CONTROL & REGISTRY
@@ -432,6 +467,10 @@ int main(int argc, char* argv[]) {
                 }
 
                 active_subscribers.push_back(sub);
+                
+                // Flush the old rendering history cache when creating a new reader
+                shape_registry.clear();
+                
                 std::cout << "[System] Initialized DataReader matching shape: " << sub.target_shape 
                           << ", Color: " << sub.color_filter << std::endl;
             }
@@ -453,6 +492,10 @@ int main(int argc, char* argv[]) {
                         dds_manager.delete_reader(it->target_shape);
                     }
                     std::cout << "[System] Unsubscribed filter mapping: " << it->target_shape << " (" << it->color_filter << ")" << std::endl;
+                    
+                    // Flush the rendering history cache when deleting a reader
+                    shape_registry.clear();
+                    
                     it = active_subscribers.erase(it);
                 } else {
                     ++it;

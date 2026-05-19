@@ -12,7 +12,6 @@
 // Forward declaring GLFW window handles to avoid exposing headers everywhere
 struct GLFWwindow;
 
-// Update the private and public boundaries inside src/graphics/graphics_engine.hpp:
 class GraphicsEngine {
 public:
     GraphicsEngine();
@@ -28,15 +27,15 @@ public:
     void end_ui();
 
     void initialize_projection(int width, int height);
-    void draw_cube(float x, float y, float z, float size, float r, float g, float b, bool wireframe = false, float angle = 0.0f);
-    void draw_sphere(float x, float y, float z, float radius, float r, float g, float b, bool wireframe = false, float angle = 0.0f);
-    void draw_tetrahedron(float x, float y, float z, float size, float r, float g, float b, bool wireframe = false, float angle = 0.0f);
+    void draw_cube(float x, float y, float z, float size, float r, float g, float b, bool wireframe = false, float angle = 0.0f, bool thin = false);
+    void draw_sphere(float x, float y, float z, float radius, float r, float g, float b, bool wireframe = false, float angle = 0.0f, bool thin = false);
+    void draw_tetrahedron(float x, float y, float z, float size, float r, float g, float b, bool wireframe = false, float angle = 0.0f, bool thin = false);
     void draw_coordinate_grid();
 
     // Mouse orbital and panning coordinate handlers
     void handle_cursor_pos(double x, double y);
     void handle_mouse_button(int button, int action, int mods);
-    void handle_scroll(double xoffset, double yoffset); // Added scroll support
+    void handle_scroll(double xoffset, double yoffset); 
 
     GLFWwindow* get_window() const { return window_; }
 
