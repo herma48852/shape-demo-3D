@@ -2,7 +2,7 @@
 
 A high-performance, real-time 3D network telemetry visualization suite built around **RTI Connext DDS 7.7.0** using the Modern C++ API (`cpp2_api`). The application utilizes hardware-accelerated **OpenGL** and **GLFW3** for 3D graphics rendering, integrated with a dynamic, stateful graphical user interface powered by **Dear ImGui**.
 
-This project provides a fully localized distributed network simulation layer allowing developers to publish and subscribe to geometric spatial telemetry topics across an automated build and code-generation pipeline.
+This project provides a real-time visualization client allowing developers to observe, publish, and subscribe to geometric spatial telemetry topics over an active DDS network.
 
 ---
 
