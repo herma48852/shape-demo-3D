@@ -125,7 +125,7 @@ cmake --build . --config Release
 Once successfully compiled, run the executable binary inside the build output repository:
 
 ```bash
-./rti_3d_shapes [Domain_ID]
+./3d_shapes [Domain_ID]
 ```
 * *Note: Passing a numerical parameter chooses the target DDS domain. If no arguments are supplied, the system defaults to Domain `0`.*
 

@@ -2,7 +2,7 @@
 # ==============================================================================
 # (c) Copyright, Real-Time Innovations, All rights reserved.
 #
-# Bash compilation script for rti_3d_shapes on macOS.
+# Bash compilation script for 3d_shapes on macOS.
 # ==============================================================================
 
 # Exit immediately if any command fails
@@ -101,11 +101,11 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       ..
 
 # 6. Compile the binaries
-echo "-> Compiling rti_3d_shapes target..."
+echo "-> Compiling 3d_shapes target..."
 cmake --build . --config Release
 
 echo "======================================================================"
 echo " BUILD SUCCESSFUL!"
-echo " Execute the simulation using: ./rti_3d_shapes"
+echo " Execute the simulation using: ./3d_shapes"
 echo "======================================================================"
  

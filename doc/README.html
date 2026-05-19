@@ -140,7 +140,7 @@
 
             <div class="bg-gray-950 rounded-xl p-5 border border-gray-850 text-xs text-gray-350">
                 <div class="space-y-1.5 leading-none">
-                    <div><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">rti_3d_shapes_workspace/</span></div>
+                    <div><i class="fa-solid fa-folder text-indigo-500 mr-1.5"></i> <span class="font-bold text-white">3d_shapes_workspace/</span></div>
                     
                     <!-- Level 1 Elements -->
                     <div class="pl-5"><i class="fa-solid fa-file-code text-indigo-400 mr-1.5"></i> <span class="text-gray-300">CMakeLists.txt</span> <span class="text-gray-500 italic ml-2">(CREATED - Root build system configuration script)</span></div>
@@ -176,10 +176,10 @@
                     <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeTypeSupport.hpp</span> <span class="text-gray-500 italic ml-2">(GENERATED - DataWriter and DataReader type specialization wrappers)</span></div>
                     <div class="pl-15"><i class="fa-solid fa-file-code text-orange-300 mr-1.5"></i> <span class="text-gray-400">ShapeTypeSupport.cxx</span> <span class="text-gray-500 italic ml-2">(GENERATED - TypeSupport registration routines)</span></div>
                     
-                    <!-- Transient build output (under rti_3d_shapes_workspace) -->
+                    <!-- Transient build output (under 3d_shapes_workspace) -->
                     <div class="pl-5"><i class="fa-solid fa-folder text-indigo-500/80 mr-1.5"></i> <span class="font-bold text-white">build/</span> <span class="text-gray-500 italic ml-2">(TRANSIENT - Output repository managed by CMake build loops)</span></div>
                     <div class="pl-10"><i class="fa-solid fa-file-code text-indigo-400 mr-1.5"></i> <span class="text-gray-300">CMakeCache.txt</span> <span class="text-gray-500 italic ml-2">(GENERATED - Active compiler configuration metadata)</span></div>
-                    <div class="pl-10"><i class="fa-solid fa-file text-emerald-400 mr-1.5"></i> <span class="text-gray-300">rti_3d_shapes</span> <span class="text-gray-500 italic ml-2">(GENERATED - Final, optimized compiled machine executable binary)</span></div>
+                    <div class="pl-10"><i class="fa-solid fa-file text-emerald-400 mr-1.5"></i> <span class="text-gray-300">3d_shapes</span> <span class="text-gray-500 italic ml-2">(GENERATED - Final, optimized compiled machine executable binary)</span></div>
                 </div>
             </div>
         </section>
@@ -211,7 +211,7 @@ find_package(RTIConnextDDS REQUIRED COMPONENTS cpp2)
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
 
-add_executable(rti_3d_shapes
+add_executable(3d_shapes
     src/main.cpp
     src/dds/dds_manager.cpp
     src/graphics/graphics_engine.cpp
@@ -220,14 +220,14 @@ add_executable(rti_3d_shapes
     src/generated/ShapeTypeSupport.cxx
 )
 
-target_include_directories(rti_3d_shapes PRIVATE 
+target_include_directories(3d_shapes PRIVATE 
     src
     src/dds
     src/graphics
     src/generated
 )
 
-target_link_libraries(rti_3d_shapes PRIVATE
+target_link_libraries(3d_shapes PRIVATE
     RTIConnextDDS::cpp2
     glfw
     OpenGL::GL

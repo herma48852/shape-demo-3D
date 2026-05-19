@@ -12,7 +12,7 @@
 /install/
 
 # Compiled Binaries & Libraries
-/rti_3d_shapes
+/3d_shapes
 *.o
 *.a
 *.so

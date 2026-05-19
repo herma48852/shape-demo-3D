@@ -206,7 +206,7 @@ endif()
 # ==============================================================================
 
 # Executable target grouping manually created source files and generated types
-add_executable(rti_3d_shapes
+add_executable(3d_shapes
     src/main.cpp
     src/dds/dds_manager.cpp
     src/graphics/graphics_engine.cpp
@@ -215,18 +215,18 @@ add_executable(rti_3d_shapes
 
 # Set compile flags for code warnings & optimizations
 if(MSVC)
-    target_compile_options(rti_3d_shapes PRIVATE /W4 /WX /Ot)
+    target_compile_options(3d_shapes PRIVATE /W4 /WX /Ot)
 else()
-    target_compile_options(rti_3d_shapes PRIVATE -Wall -Wextra -Wpedantic -O3)
+    target_compile_options(3d_shapes PRIVATE -Wall -Wextra -Wpedantic -O3)
 endif()
 
 # Silence OpenGL API deprecation warnings on macOS
 if(APPLE)
-    target_compile_definitions(rti_3d_shapes PRIVATE GL_SILENCE_DEPRECATION)
+    target_compile_definitions(3d_shapes PRIVATE GL_SILENCE_DEPRECATION)
 endif()
 
 # Map include directories
-target_include_directories(rti_3d_shapes PRIVATE
+target_include_directories(3d_shapes PRIVATE
     src
     src/dds
     src/graphics
@@ -242,7 +242,7 @@ target_include_directories(rti_3d_shapes PRIVATE
 # Search and configure local system Thread dependencies (pthreads)
 find_package(Threads REQUIRED)
 
-target_link_libraries(rti_3d_shapes PRIVATE
+target_link_libraries(3d_shapes PRIVATE
     RTIConnextDDS::cpp2_api        # Official RTI Connext Modern C++ API target
     imgui_lib                      # Dear ImGui library + Backends
     ${GLFW_LINK_LIBRARY}           # Standardized GLFW variable target
