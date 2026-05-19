@@ -2,13 +2,14 @@
 
 A high-performance, real-time 3D network telemetry visualization suite built around **RTI Connext DDS 7.7.0** using the Modern C++ API (`cpp2_api`). The application utilizes hardware-accelerated **OpenGL** and **GLFW3** for 3D graphics rendering, integrated with a dynamic, stateful graphical user interface powered by **Dear ImGui**.
 
-This project provides a real-time visualization client allowing developers to observe, publish, and subscribe to geometric spatial telemetry topics over an active DDS network.
+This project provides a real-time visualization client allowing developers to observe, publish, and subscribe to geometric spatial telemetry topics over an active DDS network. It is fully backwards-compatible with RTI's legacy 2D Shapes Demo, seamlessly processing and rendering flat 2D coordinates on our 3D visualization grid.
 
 ---
 
 ## 🚀 Key Features
 
 * **Distributed 3D Telemetry Orchestration:** Native integration with RTI Connext DDS 7.7.0 enabling seamless serialization, network publication, and distributed discovery of 3D spatial coordinate updates.
+* **RTI 2D Shapes Demo Backwards Compatibility:** Fully compatible with legacy 2D Shapes Demo publications. The client translates flat 2D shape streams into 3D models with a sleek, constant extrusion thickness of 4 units on the Z=125 plane.
 * **Automated `rtiddsgen` IDL Compilation:** Integrates an extensible CMake compilation pipeline that automatically monitors and compiles standard Interface Definition Language (`.idl`) schemas into strongly-typed modern C++ source and plugin bindings.
 * **Hardware-Accelerated 3D Renderer:** Legacy OpenGL context wrapper capable of drawing wireframe and solid geometries (Cubes, Spheres, Tetrahedrons) with fully integrated alpha-fading chronological history trails.
 * **Dynamic QoS Engineering:** Interactive sliders let you change Quality of Service (QoS) parameters at runtime, such as **Time-Based Filters** and **History Depth Profiles**, instantly modulating incoming middleware throughput.

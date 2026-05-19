@@ -99,7 +99,7 @@
         <header class="border-b border-gray-800 pb-6">
             <h1 class="text-3xl font-extrabold tracking-tight text-white">3D Shapes Demo</h1>
             <p class="text-sm text-gray-400 mt-2 leading-relaxed">
-                This project provides a real-time visualization client allowing developers to observe, publish, and subscribe to geometric spatial telemetry topics over an active DDS network.
+                This project provides a real-time visualization client allowing developers to observe, publish, and subscribe to geometric spatial telemetry topics over an active DDS network. It is fully backwards-compatible with RTI's legacy 2D Shapes Demo, rendering flat 2D shape publications with a sleek, uniform extrusion depth on the 3D grid.
             </p>
         </header>
 
@@ -124,6 +124,13 @@
                     <span class="font-bold text-emerald-400 block uppercase tracking-wide">UI Render Thread Context (Main)</span>
                     <p class="text-gray-400 leading-relaxed">
                         Monitors keyboard/mouse callback contexts, processes local kinematics, flushes queue frames at screen refresh rates (60+ Hz), and writes flat primitive buffers straight to standard unlit OpenGL pipelines.
+                    </p>
+                </div>
+            
+                <div class="bg-gray-900/40 border border-gray-850 p-4 rounded-xl space-y-2 col-span-1 md:col-span-2">
+                    <span class="font-bold text-amber-400 block uppercase tracking-wide"><i class="fa-solid fa-code-merge mr-1.5"></i> RTI 2D Shapes Demo Backwards Compatibility</span>
+                    <p class="text-gray-400 leading-relaxed">
+                        Fully compatible with standard RTI 2D Shapes Demo publications. When subscribing to 2D topics (Z=125), the visualizer automatically extrudes the 2D plane data to a crisp 3D thickness of 4 units, rendering beautiful, depth-shaded cylinders and prisms.
                     </p>
                 </div>
             </div>
